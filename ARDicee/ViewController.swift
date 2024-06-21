@@ -16,6 +16,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        //maps points to the plain detection
+        self.sceneView.debugOptions = [ARSCNDebugOptions.showFeaturePoints]
+        
         // Set the view's delegate
         sceneView.delegate = self
         
@@ -42,13 +45,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.autoenablesDefaultLighting = true
         
         // Create a new scene
-        let diceScene = SCNScene(named: "art.scnassets/diceCollada.scn")!
-        
-        if let diceNode = diceScene.rootNode.childNode(withName: "Dice", recursively: true) {
-            diceNode.position = SCNVector3(0, 0, -0.1)
-            
-            sceneView.scene.rootNode.addChildNode(diceNode)
-        }
+//        let diceScene = SCNScene(named: "art.scnassets/diceCollada.scn")!
+//        
+//        if let diceNode = diceScene.rootNode.childNode(withName: "Dice", recursively: true) {
+//            diceNode.position = SCNVector3(0, 0, -0.1)
+//            
+//            sceneView.scene.rootNode.addChildNode(diceNode)
+//        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -56,6 +59,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        
+        // so we can detect horizontal plains
+        configuration.planeDetection = .horizontal
         
         // Run the view's session
         sceneView.session.run(configuration)
@@ -66,5 +72,41 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Pause the view's session
         sceneView.session.pause()
+    }
+    
+    //
+    func renderer(_ renderer: any SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        if anchor is ARPlaneAnchor {
+            
+            let planeAnchor = anchor as! ARPlaneAnchor
+            
+            //convert the dimensions of our anchor into a scene plane
+            let plane = SCNPlane(width: CGFloat(planeAnchor.extent.x), height: CGFloat(planeAnchor.extent.z))
+            
+            //create a new node and assign it as plane node
+            let planeNode = SCNNode()
+            
+            //set the position of the node to be in centered about the x and z axis, without being elevated using the y
+            planeNode.position = SCNVector3(x: planeAnchor.center.x, y: 0, z: planeAnchor.center.z)
+            
+            //planes load in vertical, so rotate it to be flat and right side up
+            planeNode.transform = SCNMatrix4MakeRotation(-Float.pi/2, 1, 0, 0)
+            
+            //create a new grid material object
+            let gridMaterial = SCNMaterial()
+            
+            //assign the grid image to the plane
+            gridMaterial.diffuse.contents = UIImage(named: "art.scnassets/grid.png")
+            
+            //assign the gridmaterial to the plane's material
+            plane.materials = [gridMaterial]
+            
+            planeNode.geometry = plane
+            //add this to the main node above
+            node.addChildNode(planeNode)
+            
+        } else {
+            return
+        }
     }
 }
